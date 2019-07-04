@@ -23,12 +23,14 @@ def plot(filenames, datasets=None, out='timings.png', title=None, labels=None):
     if datasets is None:
         datasets = [np.loadtxt(f, delimiter=';') for f in filenames]
 
-    xmax = max(dataset[:, 0].max() for dataset in datasets)*1.1
+    xmax = max(dataset[:, 0].max() for dataset in datasets)
     ax.set_xlim(xmin=1, xmax=xmax)
     axs[1].set_xlim(xmin=1, xmax=xmax)
 
     for dataset, name in zip(datasets, labels):
         ax.plot(dataset[:, 0], dataset[:, 2], marker='o', label=name)
+    ax.set_xticks([int(x) for x in datasets[0][:, 0]])
+    ax.set_xticklabels([int(x) for x in datasets[0][:, 0]])
     ax.grid(True)
     ax.legend(loc='best')
 
@@ -42,7 +44,7 @@ def plot(filenames, datasets=None, out='timings.png', title=None, labels=None):
             axs[1].loglog(dataset[:, 0], dataset[:, idx], marker='o',
                           label='%s, %s' % (metric, name))
         
-    axs[1].set_xticks(datasets[0][:, 0])
+    axs[1].set_xticks([int(x) for x in datasets[0][:, 0]])
     axs[1].set_xticklabels([int(x) for x in datasets[0][:, 0]])
     axs[1].grid(True)
     axs[1].legend(loc='best')
