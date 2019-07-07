@@ -71,4 +71,17 @@ How caches store data
    :alt: direct fill and two-way caches
 
 
+False sharing
+=============
+
+* Load requires read-only access to the cache line
+* Store requires write access and invalidates other copies
+
+Write access to **different** locations in the same cache line is serialized
+(i.e. only one core at a time can perform a store).
+
+.. raw:: html
+
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/UOlOrACAj6o?controls=0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
