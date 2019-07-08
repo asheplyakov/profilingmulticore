@@ -1,4 +1,9 @@
 
+
+aligned_new := $(shell if $(CXX) -std=c++11 -faligned-new -o /dev/null src/test.cc 2>/dev/null; then echo OK; fi)
+ifeq ($(strip $(aligned_new)),)
+CXX := /opt/rh/devtoolset-7/root/usr/bin/g++
+endif
 CXXFLAGS ?= -O2 -g -Wall -pipe -fno-omit-frame-pointer
 LDFLAGS ?=
 
