@@ -19,6 +19,7 @@ bin/falsesharing: .o/falsesharing.o
 	$(CXX) -c -o $@ $(CXXFLAGS) -std=c++11 -pthread $<
 
 bin/nomorefalsesharing: .o/nomorefalsesharing.o
+	@mkdir -p "$(dir $@)"
 	$(CXX) -pthread -o $@ $(LDFLAGS) $^
 
 .o/nomorefalsesharing.o: src/nomorefalsesharing.cpp
