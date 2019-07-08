@@ -56,7 +56,7 @@ def main():
     parser = OptionParser()
     parser.add_option('-o', dest='plot', default='falsesharing.png')
     parser.add_option('-t', dest='title', default='False sharing demo')
-    parser.add_option('-l', dest='labels', default='before;after')
+    parser.add_option('-l', dest='labels', default='false sharing;fixed')
 
     options, args = parser.parse_args()
     plot(args, out=options.plot, title=options.title,
