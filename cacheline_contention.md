@@ -1,8 +1,8 @@
-# Tracking down cache line contention with perf
+# Tracking down cacheline contention with perf
 
-## Introduction
+## Cacheline contention? What's that?
 
-What could be possibly wrong with [this program](./src/falsesharing.cpp)?
+Consider [this program](./src/falsesharing.cpp)
 
 ```c++
 
