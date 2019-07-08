@@ -2,7 +2,7 @@
 
 ## Introduction
 
-What could be possibly wrong with this program?
+What could be possibly wrong with [this program](./src/falsesharing.cpp)?
 
 ```c++
 
@@ -27,19 +27,17 @@ void run(unsigned tCount, unsigned N) {
 * Run time does not depend on number of threads if there are enough cores
 * Run time grows linearly with the number of repetitions **N**
 
+--
 
 ### Reality
 
-#### With 4-core 8-thread CPU (Core i7-7700)
+With 2 x Xeon E5-2687W (2 sockets, 10 cores per a package, total: 20 cores)
 
-[demo time]
-
-#### With dual-socket 10-core CPUs (2 x Xeon E5-2687W)
-
-[demo time]
+![falsesharing NUMA timing](./img/falsesharing_timing_numa.png)
 
 There are enough cores, but the run time heavily depends on number of threads.
 
+---
 
 ## Memory caches
 
