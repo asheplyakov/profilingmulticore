@@ -97,8 +97,8 @@ Write access to **different** locations in the same cache line is serialized
 
 ### Fixing false sharing
 
-* Align elements of `counters` vector at 64 bytes
-* Force [std::allocator](https://en.cppreference.com/w/cpp/memory/allocator) to obey the alignment
+* Align elements of `counters` vector at 64 bytes: **alignas(64)**
+* Force [std::allocator](https://en.cppreference.com/w/cpp/memory/allocator) to obey the alignment: **-faligned-new**
 
 ```c++
 
