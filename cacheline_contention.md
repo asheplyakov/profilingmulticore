@@ -87,3 +87,37 @@ Write access to **different** locations in the same cache line is serialized
 
 [![Twin baby girls fight over pacifier](https://img.youtube.com/vi/UOlOrACAj6o/0.jpg)](https://www.youtube.com/embed/UOlOrACAj6o)
 
+
+### Finding false sharing with `perf`
+
+```bash
+   sudo perf c2c record --call-graph=fp ./bin/falsesharing -t 20
+   sudo perf c2c report -g
+```
+
+### Fixing false sharing
+
+* Align elements of `counters` vector at 64 bytes
+* Force [std::allocator](https://en.cppreference.com/w/cpp/memory/allocator) to obey the alignment
+
+```c++
+
+void counterBumpThread(std::atomic<int> *cnt, unsigned N) {
+    for (; N-- > 0;) { cnt->fetch_add(1); }
+}
+
+struct alignas(64) AlignedAtomicInt {
+    std::atomic<int> val;
+};
+
+void run(unsigned tCount, unsigned N) {
+    std::vector<AlignedAtomicInt> counters(tCount);
+    for (auto& x: counters) { x.val.store(0); }
+    std::vector<std::thread> threads;
+    for (auto& x: counters) {
+        threads.emplace_back(counterBumpThread, &(x.val), N);
+    }
+    for (auto& t: threads) { t.join(); }
+}
+```
+
