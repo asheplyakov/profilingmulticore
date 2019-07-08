@@ -51,14 +51,28 @@ The memory of multicore CPUs is a hierarchical network
 
 ### How caches store data
 
-
-|  Memory address             |      Cache entry               |
-|:---------------------------:|:-------------------------------|
-| Tag | index  | block offset | Tag |   cache line     | flags |
-|-----|--------|--------------|-----|------------------|-------|
-|     | [13:6] |    [5:0]     |     | 64 bytes of data |       |
-|-----|--------|--------------|-----|------------------|-------|
-
+<table>
+  <tr>
+    <th colspan="3">Memory address</th>
+    <th colspan="3">Cache entry</th>
+  </tr>
+  <tr>
+    <td>Tag</td>
+    <td>Index</td>
+    <td>Block offset</td>
+    <td>Tag</td>
+    <td>Data block (cacheline)</td>
+    <td>Flags</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td>[13:6]</td>
+    <td>[5:0]</td>
+    <td></td>
+    <td>64 bytes of data</td>
+    <td></td>
+  </tr>
+</table>
 
 ![direct fill and two-way caches](./Cache_Fill.svg)
 
