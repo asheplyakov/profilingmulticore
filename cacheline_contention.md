@@ -44,7 +44,7 @@ There are enough cores, but the run time heavily depends on number of threads.
 
 The memory of multicore CPUs is a hierarchical network
 
-![dual-socket system memory topology](./memorytopo_2x_xeon.png)
+![dual-socket system memory topology](./img/memorytopo_2x_xeon.png)
 
 ---
 
@@ -73,7 +73,7 @@ The memory of multicore CPUs is a hierarchical network
   </tr>
 </table>
 
-![direct fill and two-way caches](./Cache_Fill.svg)
+![direct fill and two-way caches](./img/Cache_Fill.svg)
 
 ---
 
