@@ -27,7 +27,7 @@ void run(unsigned tCount, unsigned N) {
 * Run time does not depend on number of threads if there are enough cores
 * Run time grows linearly with the number of repetitions **N**
 
---
+---
 
 ### Reality
 
@@ -46,6 +46,7 @@ The memory of multicore CPUs is a hierarchical network
 
 ![dual-socket system memory topology](./memorytopo_2x_xeon.png)
 
+---
 
 ### How caches store data
 
@@ -74,6 +75,7 @@ The memory of multicore CPUs is a hierarchical network
 
 ![direct fill and two-way caches](./Cache_Fill.svg)
 
+---
 
 ## False sharing
 
@@ -92,6 +94,8 @@ Write access to **different** locations in the same cache line is serialized
    sudo perf c2c record --call-graph=fp ./bin/falsesharing -t 20
    sudo perf c2c report -g
 ```
+
+---
 
 ### Fixing false sharing
 
