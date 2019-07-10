@@ -123,6 +123,8 @@ void run(unsigned tCount, unsigned N) {
 }
 ```
 
+[resolved false sharing](./img/nomorefalsesharing_timing.png)
+
 ---
 
 ## Summary
@@ -131,6 +133,7 @@ void run(unsigned tCount, unsigned N) {
 * Performance hit is especially severe in a NUMA system (10x or even more)
 * STL containers often provoke false sharing
 * [perf c2c](http://man7.org/linux/man-pages/man1/perf-c2c.1.html) helps to track down false sharing
+
 
 ---
 
