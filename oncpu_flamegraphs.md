@@ -26,17 +26,15 @@ void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
         std::remove_reference<decltype(qptr->q.front())>::type item;
         {
            std::unique_lock<decltype(qptr->mutex)> l(qptr->mutex);
-           if (qptr->q.empty() && !qptr->finished) {
-               qptr->cond_nonempty.wait(l, [&] { return !qptr->q.empty() || qptr->finished; });
-           }
+           qptr->cond_nonempty.wait(l, [&] { return !qptr->q.empty() || qptr->finished; });
            if (qptr->q.empty() && qptr->finished) {
                break;
            }
            item = qptr->q.front();
-           item++;
            qptr->q.pop();
         }
         qptr->cond_nonfull.notify_one();
+        item++;
         if (serviceTimeUsec > 0) {
            std::this_thread::sleep_for(std::chrono::microseconds(serviceTimeUsec));
         }
@@ -51,9 +49,7 @@ void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUse
     for (uint64_t i = 0; i < maxItems; i++) {
         {
            unique_lock l(qptr->mutex);
-           if (qptr->q.size() >= qptr->max_size) {
-               qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
-           }
+           qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
            qptr->q.push(item);
         }
         qptr->cond_nonempty.notify_all();
