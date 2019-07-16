@@ -152,8 +152,7 @@ Useful for
 Record stack traces of the whole system for 10 seconds, 99 times a second
 
 ```bash
-./bin/thunderingherd
-sudo perf record -F 99 --call-graph=dwarf -a -- ./bin/thunderingherd -t 1
+sudo perf record -F 99 --call-graph=dwarf ./bin/thunderingherd
 ```
 
 Convert to the text form (on the same system)
@@ -179,3 +178,23 @@ Examine with [flamescope](https://github.com/Netflix/flamescope)
 * Flame graphs make it easy to find bottlenecks
 * Subsecond offset heat maps are helpful for tracking down concurrency issues
 
+---
+
+### Addendum: ugly technical details
+
+#### Recording traces with 3.x kernels (including CentOS/RHEL 7)
+
+Due to a bug in 3.x kernels using the PID filter causes `perf` to hog CPUs.
+As a result counts of app threads get dwarfed by `perf`.
+This applies both to explicit `perf record -p $PID` and implicit `perf record /path/to/program`
+Work around: record the whole system trace, and filter in the `perf script` phase
+
+```bash
+sudo perf record -F 99 --call-graph=dwarf -a -- ./bin/thunderingherd
+sudo perf script --header --comms=thunderingherd | gzip -9 > thunderingherd.stacks.gz
+```
+
+Beware
+
+* `comm` is a thread name rather than the executable name
+* `comm` is truncated to 15 symbols
