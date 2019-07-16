@@ -7,7 +7,8 @@ endif
 CXXFLAGS ?= -O2 -g -Wall -pipe -fno-omit-frame-pointer
 LDFLAGS ?=
 
-all: bin/falsesharing bin/nomorefalsesharing
+all: bin/falsesharing bin/nomorefalsesharing \
+	bin/thunderingherd bin/nothunderingherd bin/nothunderingherd_clockfix
 
 
 bin/falsesharing: .o/falsesharing.o
@@ -25,6 +26,31 @@ bin/nomorefalsesharing: .o/nomorefalsesharing.o
 .o/nomorefalsesharing.o: src/nomorefalsesharing.cpp
 	@mkdir -p "$(dir $@)"
 	$(CXX) -c -o $@ $(CXXFLAGS) -std=c++11 -pthread -faligned-new $<
+
+bin/thunderingherd: .o/thunderingherd.o
+	@mkdir -p "$(dir $@)"
+	$(CXX) -pthread -o $@ $(LDFLAGS) $^
+
+.o/thunderingherd.o: src/thunderingherd.cpp
+	@mkdir -p "$(dir $@)"
+	$(CXX) -c -o $@ $(CXXFLAGS) -std=c++11 -pthread $<
+
+bin/nothunderingherd: .o/nothunderingherd.o
+	@mkdir -p "$(dir $@)"
+	$(CXX) -pthread -o $@ $(LDFLAGS) $^
+
+.o/nothunderingherd.o: src/nothunderingherd.cpp
+	@mkdir -p "$(dir $@)"
+	$(CXX) -c -o $@ $(CXXFLAGS) -std=c++11 -pthread $<
+
+bin/nothunderingherd_clockfix: .o/nothunderingherd_clockfix.o
+	@mkdir -p "$(dir $@)"
+	$(CXX) -pthread -o $@ $(LDFLAGS) $^
+
+.o/nothunderingherd_clockfix.o: src/nothunderingherd_clockfix.cpp
+	@mkdir -p "$(dir $@)"
+	$(CXX) -c -o $@ $(CXXFLAGS) -std=c++11 -pthread $<
+
 
 bench: bin/falsesharing
 	./benchmark.sh
