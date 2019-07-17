@@ -155,18 +155,22 @@ Useful for
 Record stack traces of the whole system for 10 seconds, 99 times a second
 
 ```bash
-sudo perf record -F 99 --call-graph=dwarf ./bin/thunderingherd
+sudo perf record -F 99 --call-graph=dwarf -a -- ./bin/thunderingherd
 ```
+
+[how to record the trace of a specific process/thread](./ugly_technical_details.md#recording-traces-with-3x-kernels-centosrhel-7)
+
 
 ##### Inspecting the trace
 
-1. Convert to the text form (on the same system)
+1. Convert to the text form (on the system where it has been recorded)
 
 ```bash
 sudo perf script --header | gzip -9 > thunderingherd.stacks.gz
 ```
 
-2. Examine with [flamescope](https://github.com/Netflix/flamescope)
+2. Examine the `*.stacks.gz` file with [flamescope](https://github.com/Netflix/flamescope)
+
 
 ---
 
