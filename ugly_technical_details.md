@@ -1,6 +1,6 @@
 # Profiling techinques and tools: ugly technical details
 
-* [Recording traces with 3.x kernels (CentOS/RHEL 7)](#recording-traces-with-3-x-kernels-centos-rhel-7)
+* [Recording traces with 3.x kernels (CentOS/RHEL 7)](#recording-traces-with-3x-kernels-centosrhel-7)
 * [Obtaining meaningful stack traces](#obtaining-meaningful-stack-traces)
 
 
