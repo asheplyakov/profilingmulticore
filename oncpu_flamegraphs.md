@@ -126,6 +126,8 @@ Things which take a miniscule time to execute don't even show up
 
 [thunderingherd flame graph](./img/thunderingherd.svg)
 
+---
+
 #### [Subsecond offset heatmaps](http://www.brendangregg.com/HeatMaps/subsecondoffset.html)
 
 An improved version of a CPU load graph
@@ -139,6 +141,7 @@ Useful for
 * Tracking down concurrency problems: lock contention, thundering herd, etc
 * Understanding the behavior of the app (IO bound vs CPU bound)
 
+---
 
 ### On-CPU profiling in Linux
 
@@ -147,7 +150,7 @@ Useful for
 * [FlameGraph](https://github.com/brendangregg/FlameGraph)
 * [FlameScope](https://github.com/Netflix/flamescope)
 
-#### Recording a trace
+##### Recording a trace
 
 Record stack traces of the whole system for 10 seconds, 99 times a second
 
@@ -155,13 +158,15 @@ Record stack traces of the whole system for 10 seconds, 99 times a second
 sudo perf record -F 99 --call-graph=dwarf ./bin/thunderingherd
 ```
 
-Convert to the text form (on the same system)
+##### Inspecting the trace
+
+1. Convert to the text form (on the same system)
 
 ```bash
 sudo perf script --header | gzip -9 > thunderingherd.stacks.gz
 ```
 
-Examine with [flamescope](https://github.com/Netflix/flamescope)
+2. Examine with [flamescope](https://github.com/Netflix/flamescope)
 
 ---
 
