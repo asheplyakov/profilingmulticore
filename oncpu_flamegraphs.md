@@ -180,21 +180,5 @@ Examine with [flamescope](https://github.com/Netflix/flamescope)
 
 ---
 
-### Addendum: ugly technical details
+### Addendum: [ugly technical details](./ugly_technical_details.md)
 
-#### Recording traces with 3.x kernels (including CentOS/RHEL 7)
-
-Due to a bug in 3.x kernels using the PID filter causes `perf` to hog CPUs.
-As a result counts of app threads get dwarfed by `perf`.
-This applies both to explicit `perf record -p $PID` and implicit `perf record /path/to/program`
-Work around: record the whole system trace, and filter in the `perf script` phase
-
-```bash
-sudo perf record -F 99 --call-graph=dwarf -a -- ./bin/thunderingherd
-sudo perf script --header --comms=thunderingherd | gzip -9 > thunderingherd.stacks.gz
-```
-
-Beware
-
-* `comm` is a thread name rather than the executable name
-* `comm` is truncated to 15 symbols

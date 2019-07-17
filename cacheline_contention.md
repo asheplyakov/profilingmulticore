@@ -134,29 +134,7 @@ void run(unsigned tCount, unsigned N) {
 * STL containers often provoke false sharing
 * [perf c2c](http://man7.org/linux/man-pages/man1/perf-c2c.1.html) helps to track down false sharing
 
-
 ---
 
-### Ugly technical details
+### Addendum: [ugly technical details](./ugly_technical_details.md)
 
-#### Obtaining meaningful stack traces
-
-There are several ways to unwind the stack:
-
-1. frame pointers (`rbp` register on x86_64), typically disabled by compiler optimizations
-2. [DWARF](http://www.dwarfstd.org/doc/Debugging%20using%20DWARF-2012.pdf)
-   (debugging with attributed record formats), complicated state machine
-3. [LBR](https://lwn.net/Articles/680985) CPU facility (recent Intel CPUs)
-
-To use DWARF `perf` needs to copy the whole stack area (default: 32MB on x86_64)
-to userspace (and do stack unwinding during `perf script` or `perf report`).
-If the event driving the profiling happens frequently (CPU cycle, memory load/store,
-etc) the data rate can be overwhelming (~ 100 -- 500 MB/sec). Such an overhead
-is typically unacceptable.
-
-On the other hand `perf` can unwind stack with frame pointers in the kernel
-and copy less than 1KB (unless the call chain is longer than 128). However
-there's an implicit overhead: the compiler can't use the `rbp` register for
-other purposes, so the code with frame pointers enabled might be up to 15%
-slower. Thus distributions compile software with frame pointers disabled,
-hence a recompilation with `-fno-omit-frame-pointer` compiler option is required.
