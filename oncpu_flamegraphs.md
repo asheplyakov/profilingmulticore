@@ -179,9 +179,10 @@ sudo perf script --header | gzip -9 > thunderingherd.stacks.gz
   * POSIX condition variables (`pthread_cond_broadcast`)
   * Synchronization with Windows manual-reset events
   * Windows overlapped IO with an unspecified concurrency
-* On-CPU sampling profiling can be used to track down the problem
+* On-CPU profiling is useful for finding bottlenecks and concurrency issues
 * Flame graphs make it easy to find bottlenecks
 * Subsecond offset heat maps are helpful for tracking down concurrency issues
+* There is a better method for tracking down `thundering herd`: off-CPU profiling
 
 ---
 
