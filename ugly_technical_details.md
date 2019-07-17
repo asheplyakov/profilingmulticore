@@ -17,12 +17,12 @@ in the `perf script` phase:
 
 ```bash
 sudo perf record -F 99 --call-graph=dwarf -a -- ./bin/thunderingherd
-sudo perf script --header --comms=thunderingherd | gzip -9 > thunderingherd.stacks.gz
+sudo perf script --header --comms=tworker,tproducer | gzip -9 > thunderingherd.stacks.gz
 ```
 
 Beware
 
-* `comm` is a thread name rather than the executable name
+* `comms` are thread names and might be different from the executable name
 * `comm` is truncated to 15 symbols
 
 

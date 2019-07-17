@@ -13,6 +13,7 @@
 #include <functional>
 #include <stdexcept>
 #include <time.h>
+#include <pthread.h>
 
 struct Queue {
     std::queue<int> q;
@@ -43,6 +44,7 @@ static void spin_for(int64_t usecs) {
 
 
 void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
+    pthread_setname_np(pthread_self(), "tworker");
     for (;;) {
         std::remove_reference<decltype(qptr->q.front())>::type item;
         {
@@ -64,6 +66,7 @@ void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
 }
 
 void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
+    pthread_setname_np(pthread_self(), "tproducer");
     int item = 0;
     std::size_t outstanding_requests = 0;
     std::size_t notify_one_count = 0, notify_all_count = 0;
