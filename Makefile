@@ -89,11 +89,30 @@ $(oncpuflamegra): img/%.svg: dat/%.stacks.gz
 	~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $$workercount threads" > $@.tmp
 	mv $@.tmp $@
 
+wakestacks := $(progs2profile:%=dat/%.wakestacks.gz)
+offcpuflamegr := $(progs2profile:%=img/%_wakestacks.svg)
+
+offcpu: $(wakestacks) $(offcpuflamegr)
+
+.NOTPARALLEL:
+$(wakestacks): dat/%.wakestacks.gz: ./bin/%
+	set -e; $< & pid=$$!; \
+	sudo /usr/share/bcc/tools/offwaketime -f -p $$pid --stack-storage-size=32768 -M 9999999999 10 > "$(@:%.gz=%.tmp)"; \
+	wait $$pid
+	gzip -9 < "$(@:%.gz=%.tmp)" > $@.tmp
+	mv $@.tmp $@
+	
+$(offcpuflamegr): img/%_wakestacks.svg: dat/%.wakestacks.gz Makefile
+	set -e; cpucount=`nproc --all`; workercount=$$((cpucount-1)); \
+	zcat $< | ~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $$workercount threads" --colors wakeup --countname usec > $@.tmp
+	mv $@.tmp $@
+
 help:
 	@echo Available targets
 	@echo bench      compile and run false sharing demo
 	@echo fixedbench compile and run fixed version
 	@echo oncpu compile and run thundering herd demo
+	@echo offcpu thundering herd demo -- off-CPU
 
 clean:
 	@rm -rf .o
