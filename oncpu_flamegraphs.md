@@ -128,21 +128,6 @@ Things which take a miniscule time to execute don't even show up
 
 ---
 
-#### [Subsecond offset heatmaps](http://www.brendangregg.com/HeatMaps/subsecondoffset.html)
-
-An improved version of a CPU load graph
-
-* x axis: time, seconds
-* y axis: subsecond offset (milliseconds)
-* color: number of events
-
-Useful for
-
-* Tracking down concurrency problems: lock contention, thundering herd, etc
-* Understanding the behavior of the app (IO bound vs CPU bound)
-
----
-
 ### On-CPU profiling in Linux
 
 * [perf](https://perf.wiki.kernel.org/index.php/Main_Page)
@@ -171,6 +156,45 @@ sudo perf script --header | gzip -9 > thunderingherd.stacks.gz
 
 2. Examine the `*.stacks.gz` file with [flamescope](https://github.com/Netflix/flamescope)
 
+---
+
+##### Fixing the problem
+
+Wake up only one thread if the queue a single item long.
+Ideally we'd like to wake up 2 threads if the queue size is 2, and so on.
+The number of the waiting threads to wake up is a mandatory parameter
+of Linux' [futex](http://man7.org/linux/man-pages/man2/futex.2.html) syscall.
+No luck with portable APIs: one can wake up either one or all waiting threads.
+
+```c++
+void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
+    int item = 0;
+    using unique_lock = std::unique_lock<decltype(qptr->mutex)>;
+    for (uint64_t i = 0; i < maxItems; i++) {
+        std::size_t queue_size = 0;
+        {
+           unique_lock l(qptr->mutex);
+           qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
+           qptr->q.push(item);
+           queue_size = q.size();
+        }
+        if (queue_size <= 1) {
+            qptr->cond_nonempty.notify_one();
+        } else {
+            qptr->cond_nonempty.notify_all();
+        }
+        item++;
+        if (periodUsec > 0) {
+            spin_for(periodUsec);
+        }
+   }
+   {
+        unique_lock l(qptr->mutex);
+        qptr->finished = true;
+   }
+   qptr->cond_nonempty.notify_all();
+}
+```
 
 ---
 
