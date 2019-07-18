@@ -33,8 +33,9 @@ static void spin_for(int64_t usecs) {
 }
 
 
-void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
-    pthread_setname_np(pthread_self(), "tworker");
+void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec, unsigned idx) {
+    std::string name = std::string("tworker_") + std::to_string(idx);
+    pthread_setname_np(pthread_self(), name.c_str());
     for (;;) {
         std::remove_reference<decltype(qptr->q.front())>::type item;
         {
@@ -102,7 +103,7 @@ void run(const Conf& conf) {
 
     std::vector<std::thread> workers;
     for (unsigned i = 0; i < conf.workerCount; i++) {
-         workers.emplace_back(worker, qptr, conf.workerServiceTimeUsec);
+         workers.emplace_back(worker, qptr, conf.workerServiceTimeUsec, i);
     }
     std::thread prod{producer, qptr, conf.msgCount, conf.msgPeriodUsec};
     prod.join();
