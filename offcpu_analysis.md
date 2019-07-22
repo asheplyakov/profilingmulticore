@@ -1,5 +1,27 @@
 # Off-CPU profiling
 
+## Recap: thundering herd problem
+
+Many threads wake up on the same event, but only one has the work to perform.
+
+### Toy example
+
+* `producer`: enqueues IO requests to save results of the computation
+   * CPU bound, makes a request per a 10 usec
+   * calls `std::condition_variable::notify_all()` to wake up workers 
+* `workers`: execute queued requests (or rather simulate that)
+   * a `worker` executes (or rather simulates) a request in 1 usec on average
+
+[complete source](./src/thunderingherd.cpp)
+
+* The actual run time is 3x more than expected (20-core system, 19 worker threads)
+* Both the elapsed time and the on-CPU time are excessive
+* Root cause: all workers trying to acquire the same mutex, and all
+  but one getting blocked on it
+* The problem can be tracked down by on-CPU profiling
+* **There is a better method: off-CPU profiling**
+
+
 ## Why my threads are blocked?
 
 [Off-CPU analysis](http://www.brendangregg.com/offcpuanalysis.html):
