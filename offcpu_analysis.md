@@ -2,7 +2,7 @@
 
 ## Recap: thundering herd problem
 
-Many threads wake up on the same event, but only one has the work to perform.
+Many threads wake up on the same event, but only can handle it.
 
 ### Toy example
 
@@ -12,12 +12,82 @@ Many threads wake up on the same event, but only one has the work to perform.
 * `workers`: execute queued requests (or rather simulate that)
    * a `worker` executes (or rather simulates) a request in 1 usec on average
 
+
+```c++
+struct Queue {
+    std::queue<int> q;
+    std::mutex mutex;
+    std::condition_variable cond_nonempty;
+    std::condition_variable cond_nonfull;
+    unsigned max_size{128U};
+    bool finished{false};
+};
+```
+
+```c++
+void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
+    for (;;) {
+        std::remove_reference<decltype(qptr->q.front())>::type item;
+        {
+           std::unique_lock<decltype(qptr->mutex)> l(qptr->mutex);
+           qptr->cond_nonempty.wait(l, [&] { return !qptr->q.empty() || qptr->finished; });
+           if (qptr->q.empty() && qptr->finished) {
+               break;
+           }
+           item = qptr->q.front();
+           qptr->q.pop();
+        }
+        qptr->cond_nonfull.notify_one();
+        item++;
+        if (serviceTimeUsec > 0) {
+           std::this_thread::sleep_for(std::chrono::microseconds(serviceTimeUsec));
+        }
+    }
+}
+```
+
+```c++
+void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
+    int item = 0;
+    using unique_lock = std::unique_lock<decltype(qptr->mutex)>;
+    for (uint64_t i = 0; i < maxItems; i++) {
+        {
+           unique_lock l(qptr->mutex);
+           qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
+           qptr->q.push(item);
+        }
+        qptr->cond_nonempty.notify_all();
+        item++;
+        if (periodUsec > 0) {
+            spin_for(periodUsec);
+        }
+   }
+   {
+        unique_lock l(qptr->mutex);
+        qptr->finished = true;
+   }
+   qptr->cond_nonempty.notify_all();
+}
+```
+
 [complete source](./src/thunderingherd.cpp)
+
+
+#### Expectations
+
+`producer` makes 10^6 IO requests and exits (for example)
+
+* Elapsed run time of the program == run time of the ``producer` thread == 10 sec
+* One worker can handle all messages in 1 second => a worker sleeps > 90% of the time
+* With 10 workers: a worker sleeps > 99% of the (elapsed)
+* The `producer` thread is the bottleneck
+
+#### Reality
 
 * The actual run time is 3x more than expected (20-core system, 19 worker threads)
 * Both the elapsed time and the on-CPU time are excessive
-* Root cause: all workers trying to acquire the same mutex, and all
-  but one getting blocked on it
+* Root cause: all workers trying to acquire the same mutex
+  (every time the producer submits a request)
 * The problem can be tracked down by on-CPU profiling
 * **There is a better method: off-CPU profiling**
 
