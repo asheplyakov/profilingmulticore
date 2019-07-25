@@ -75,8 +75,11 @@ void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUse
 
 #### Expectations
 
+`producer` makes 10^6 IO requests and exits (for example)
+
+* The run time of the program == run time of the `producer` thread == 10 sec
+* One worker can handle all messages in 1 second => a worker sleeps > 90% of the time
 * The `producer` is the bottleneck
-* The run time of the program == run time of the `producer` thread
 
 #### Reality
 
@@ -202,6 +205,7 @@ void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUse
 
 * [thundering herd](https://en.wikipedia.org/wiki/Thundering_herd_problem) is a sure way to make a multithreaded program slow
 * `Thundering herd` happens when many threads wake up on the same event, but only one of them has an actual work to do
+   * More threads != faster code, often it's the other way around!
 * Careless use of C++11 condition variables (`notify_all`) results in a thundering herd
 * Same applies to
   * POSIX condition variables (`pthread_cond_broadcast`)
@@ -209,8 +213,7 @@ void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUse
   * Windows overlapped IO with an unspecified concurrency
 * On-CPU profiling is useful for finding bottlenecks and concurrency issues
 * Flame graphs make it easy to find bottlenecks
-* Subsecond offset heat maps are helpful for tracking down concurrency issues
-* There is a better method for tracking down `thundering herd`: off-CPU profiling
+* There is a better method for tracking down `thundering herd`: [off-CPU profiling](./offcpu_analysis.md)
 
 ---
 
