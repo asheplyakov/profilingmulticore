@@ -144,7 +144,7 @@ void Conf::parse(int argc, char **argv) {
         }
     }
     if (workerCount <= 0) {
-        workerCount = std::max(1U, std::thread::hardware_concurrency() - 1U);
+        workerCount = std::max(1U, std::thread::hardware_concurrency());
     }
 }
 

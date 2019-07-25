@@ -6,6 +6,7 @@ CXX := /opt/rh/devtoolset-7/root/usr/bin/g++
 endif
 CXXFLAGS ?= -O2 -g -Wall -pipe -fno-omit-frame-pointer
 LDFLAGS ?=
+WORKER_COUNT ?= $(shell nproc --all)
 
 all: bin/falsesharing bin/nomorefalsesharing \
 	bin/thunderingherd bin/nothunderingherd bin/nothunderingherd_clockfix
@@ -71,22 +72,22 @@ oncpu: $(oncpustacks) $(oncpuflamegra) $(oncpuprofiles)
 .NOTPARALLEL:
 $(oncpuprofiles): .o/%.perf.data: ./bin/%
 	@mkdir -p "$(dir $@)"
-	sudo perf record -o $@.tmp -F 99 --call-graph=dwarf -a -- $<
+	sudo perf record -o $@.tmp -F 99 --call-graph=dwarf -a -- $< -t $(WORKER_COUNT)
 	mv $@.tmp $@
 
 $(oncpustacks): dat/%.stacks.gz: .o/%.perf.data Makefile
 	@mkdir -p "$(dir $@)"
-	set -e; cpucount=`nproc --all`; workercount=$$((cpucount-1)); \
-	names=`seq -f 'tworker_%g' -s ',' 0 $$workercount`; \
+	set -e; \
+	names=`seq -f 'tworker_%g' -s ',' 0 $(WORKER_COUNT)`; \
 	sudo perf script -i $< --header --comms=tproducer,$$names > $(@:%.gz=%.tmp) && \
 	sed -i $(@:%.gz=%.tmp) -r -e 's/^(tworker)(_[0-9]+)/\1/' && \
 	gzip -9 < $(@:%.gz=%.tmp) > $@.tmp
 	mv $@.tmp $@
 
 $(oncpuflamegra): img/%.svg: dat/%.stacks.gz
-	set -e; cpucount=`nproc --all`; workercount=$$((cpucount-1)); \
+	set -e; \
 	zcat $< | ~/tools/FlameGraph/stackcollapse-perf.pl | \
-	~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $$workercount threads" > $@.tmp
+	~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $(WORKER_COUNT) threads" > $@.tmp
 	mv $@.tmp $@
 
 wakestacks := $(progs2profile:%=dat/%.wakestacks.gz)
@@ -96,15 +97,15 @@ offcpu: $(wakestacks) $(offcpuflamegr)
 
 .NOTPARALLEL:
 $(wakestacks): dat/%.wakestacks.gz: ./bin/%
-	set -e; $< & pid=$$!; \
+	set -e; $< -t $(WORKER_COUNT) & pid=$$!; \
 	sudo /usr/share/bcc/tools/offwaketime -f -p $$pid --stack-storage-size=32768 -M 9999999999 10 > "$(@:%.gz=%.tmp)"; \
+	gzip -9 < "$(@:%.gz=%.tmp)" > $@.tmp; \
 	wait $$pid
-	gzip -9 < "$(@:%.gz=%.tmp)" > $@.tmp
 	mv $@.tmp $@
 	
 $(offcpuflamegr): img/%_wakestacks.svg: dat/%.wakestacks.gz Makefile
-	set -e; cpucount=`nproc --all`; workercount=$$((cpucount-1)); \
-	zcat $< | ~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $$workercount threads" --colors wakeup --countname usec > $@.tmp
+	set -e; \
+	zcat $< | ~/tools/FlameGraph/flamegraph.pl --title "$($*_plot_title) $(WORKER_COUNT) threads" --colors wakeup --countname usec > $@.tmp
 	mv $@.tmp $@
 
 help:
