@@ -1,5 +1,16 @@
 # Off-CPU profiling
 
+## Introduction
+
+There are two types of performance problems:
+
+* On-CPU: threads spend (too many) time running on CPU
+* Off-CPU: thread(s) spend (too many) time while blocked on locks, IO, paging, etc
+
+[Off-CPU analysis](http://www.brendangregg.com/offcpuanalysis.html):
+measuring and studying off-CPU time along with context such as stack traces.
+
+
 ## Recap: thundering herd problem
 
 Many threads wake up on the same event, but only can handle it.
@@ -94,16 +105,6 @@ void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUse
 
 ## Why my threads are blocked?
 
-[Off-CPU analysis](http://www.brendangregg.com/offcpuanalysis.html):
-measuring and studying off-CPU time along with context such as stack traces.
-
-Two types of performance problems:
-
-* On-CPU: threads spend (too many) time running on CPU
-* Off-CPU: thread(s) spend (too many) time while blocked on locks, IO, paging, etc
-
-Method: tracing the scheduler (all blocking code paths in system calls end
-up in the scheduler)
 
 ### Wakeup stacks
 
@@ -117,6 +118,9 @@ a thread pool doing network IO).
 [thunderingherd wakeup stacks](./img/thunderingherd_wakestacks.svg)
 
 ### Off-CPU profiling in Linux
+
+Method: tracing the scheduler (all blocking code paths in system calls end
+up in the scheduler).
 
 * [bcc-tools](https://github.com/iovisor/bcc)
   * offwaketime
