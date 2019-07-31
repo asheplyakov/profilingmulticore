@@ -127,9 +127,10 @@ up in the scheduler).
   * offcputime
 * [FlameGraph](https://github.com/brendangregg/FlameGraph)
 
-##### Prerequisite
+##### Prerequisites
 
-The application must be compiled with frame pointers (`-fno-omit-frame-pointer`)
+* The application must be compiled with frame pointers (`-fno-omit-frame-pointer`)
+* The kernel must support [eBPF instrumentation](https://github.com/iovisor/bcc/blob/master/INSTALL.md#kernel-configuration)
 
 ##### Recording a trace
 
