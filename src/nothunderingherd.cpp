@@ -15,14 +15,77 @@
 #include <time.h>
 #include <pthread.h>
 
-struct Queue {
-    std::queue<int> q;
+template<typename T> class BlockingQueue {
+    std::queue<T> q;
     std::mutex mutex;
     std::condition_variable cond_nonempty;
     std::condition_variable cond_nonfull;
-    unsigned max_size{128U};
     bool finished{false};
+public:
+    const unsigned max_size{128U};
+    using value_type = T;
+
+    /**
+     * Appends `item` to the queue.
+     * If the queue is full the caller is blocked until something is
+     * removed or the queue enters the `finished` state.
+     * Returns `false` if the queue is in the `finished` state (the element
+     * is *not* in the queue in this case), `true` otherwise (the element
+     * has been added to the queue)
+     */
+    bool push(const T& item) {
+      bool ret = false;
+      while (!ret) {
+	 std::unique_lock<decltype(this->mutex)> l{this->mutex};
+	 this->cond_nonfull.wait(l, [&] { return this->q.size() < this->max_size || this->finished; });
+	 if (this->finished) {
+	    break;
+	 } else {
+            this->q.push(item);
+	    ret = true;
+	 }
+      }
+      this->cond_nonempty.notify_one();
+      return ret;
+    }
+
+    /**
+     * Moves the 1st element to `item`.
+     * If the queue is empty the caller is blocked until something is added
+     * or the queue enters the `finished` state.
+     * Returns `false` if the queue is in the `finished` state *and* is empty
+     * (`item` is not changed in this case), `true` otherwise.
+     */
+    bool pop(T& item) {
+       bool ret = false;
+       while (!ret) {
+          std::unique_lock<decltype(this->mutex)> l{this->mutex};
+          this->cond_nonempty.wait(l, [&] { return !this->q.empty() || this->finished; });
+          if (!this->q.empty()) {
+	     item = this->q.front();
+	     this->q.pop();
+	     ret = true;
+	  } else if (this->finished) {
+	     break;
+	  }
+       }
+       this->cond_nonfull.notify_one();
+       return ret;
+    }
+
+    void finish() {
+      {
+         std::unique_lock<decltype(this->mutex)> l{this->mutex};
+	 this->finished = true;
+      }
+      this->cond_nonempty.notify_all();
+    }
+
+    BlockingQueue() = default;
+    explicit BlockingQueue(unsigned size) : max_size{size} { }
 };
+
+using Queue = BlockingQueue<unsigned int>;
 
 static void spin_for(int64_t usecs) {
     auto start = std::chrono::steady_clock::now();
@@ -32,65 +95,33 @@ static void spin_for(int64_t usecs) {
     } while(std::chrono::duration_cast<std::chrono::microseconds>(now - start).count() < usecs);
 }
 
+
 void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec, unsigned idx) {
     std::string name = std::string("tworker_") + std::to_string(idx);
     pthread_setname_np(pthread_self(), name.c_str());
-    for (;;) {
-        std::remove_reference<decltype(qptr->q.front())>::type item;
-        {
-           std::unique_lock<decltype(qptr->mutex)> l(qptr->mutex);
-           qptr->cond_nonempty.wait(l, [&] { return !qptr->q.empty() || qptr->finished; });
-           if (qptr->q.empty() && qptr->finished) {
-               break;
-           }
-           item = qptr->q.front();
-           qptr->q.pop();
-        }
-        qptr->cond_nonfull.notify_one();
-        item++; // do something stupid
-        if (serviceTimeUsec > 0) {
+    typename Queue::value_type item{};
+    while (qptr->pop(item)) {
+	item++;
+	if (serviceTimeUsec > 0) {
            // simulate some blocking IO
            std::this_thread::sleep_for(std::chrono::microseconds(serviceTimeUsec));
-        }
+	}
     }
 }
 
 void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
     pthread_setname_np(pthread_self(), "tproducer");
-    int item = 0;
-    std::size_t outstanding_requests = 0;
-    std::size_t notify_one_count = 0, notify_all_count = 0;
-    using unique_lock = std::unique_lock<decltype(qptr->mutex)>;
+    unsigned int item = 0;
 
     for (uint64_t i = 0; i < maxItems; i++) {
-        {
-           unique_lock l(qptr->mutex);
-           qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
-           qptr->q.push(item);
-           outstanding_requests = qptr->q.size();
-        }
-        // Linux' `futex_wake` allows to wake up an arbitrary number of threads.
-        // However with `std::condition_variable` it's either one or all
-        if (outstanding_requests <= 1) {
-            qptr->cond_nonempty.notify_one();
-            ++notify_one_count;
-        } else {
-            qptr->cond_nonempty.notify_all();
-            ++notify_all_count;
-        }
-
+	qptr->push(item);
         item++;
         if (periodUsec > 0) {
+	    // simulate CPU-bound calculation
             spin_for(periodUsec);
         }
-   }
-   {
-        unique_lock l(qptr->mutex);
-        qptr->finished = true;
-   }
-   qptr->cond_nonempty.notify_all();
-   std::cout << "producer: notify_all_count " << notify_all_count << std::endl;
-   std::cout << "producer: notify_one_count " << notify_one_count << std::endl;
+    }
+    qptr->finish();
 }
 
 struct Conf {
@@ -157,7 +188,7 @@ void Conf::parse(int argc, char **argv) {
         }
     }
     if (workerCount <= 0) {
-        workerCount = std::max(1U, std::thread::hardware_concurrency() - 1U);
+        workerCount = std::max(1U, std::thread::hardware_concurrency());
     }
 }
 
