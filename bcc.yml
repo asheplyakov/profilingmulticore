@@ -1,0 +1,6 @@
+---
+
+- hosts:
+    - bcc-dev
+  roles:
+    - bcc-dev

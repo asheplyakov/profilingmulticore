@@ -1,0 +1,66 @@
+---
+
+- name: install C/C++ development tools
+  package: name={{ item }} state=present
+  with_items:
+    - cmake
+    - g++
+    - gcc
+    - git
+    - ninja-build
+  when: ansible_os_family == 'Debian'
+  become: true
+
+- name: install bcc build dependencies
+  package: name={{ item }} state=present
+  with_items:
+    - bison
+    - flex
+    - iperf
+    - libclang-11-dev
+    - libedit-dev
+    - libelf-dev
+    - libfl-dev
+    - llvm-11-dev
+    - python3
+    - python3-netaddr
+    - python3-pyroute2
+    - python3-distutils
+    - python-is-python3
+    - zlib1g-dev
+  when: ansible_os_family == 'Debian'
+  become: true
+
+- name: clone bcc git repo
+  git:
+    repo: "git://github.com/iovisor/bcc.git"
+    version: v0.19.0
+    dest: "/tmp/bcc"
+
+- name: adjust /opt directory permissions
+  file:
+    path: /opt
+    state: directory
+    mode: 0775
+    group: "{{ lookup('env', 'USER') }}"
+  become: true
+
+- name: create bcc repo directory
+  file:
+    path: "/tmp/bcc/build"
+    state: directory
+    mode: 0755
+
+- name: run CMake in bcc repo
+  command: >
+    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/opt/bcc ..
+  args:
+    chdir: /tmp/bcc/build
+
+- name: build bcc
+  command: >
+    cmake --build /tmp/bcc/build
+
+- name: install bcc
+  command: >
+    cmake --build /tmp/bcc/build -t install
