@@ -16,11 +16,6 @@
 #include <pthread.h>
 
 template<typename T> class BlockingQueue {
-    std::queue<T> q;
-    std::mutex mutex;
-    std::condition_variable cond_nonempty;
-    std::condition_variable cond_nonfull;
-    bool finished{false};
 public:
     const unsigned max_size{128U};
     using value_type = T;
@@ -33,11 +28,37 @@ public:
      * is *not* in the queue in this case), `true` otherwise (the element
      * has been added to the queue)
      */
-    bool push(const T& item) {
+    bool push(const T& item);
+
+    /**
+     * Moves the 1st element of the queue to `item`.
+     * If the queue is empty the caller is blocked until something is added
+     * or the queue enters the `finished` state.
+     * Returns `false` if the queue is in the `finished` state *and* is empty
+     * (`item` is not changed in this case), `true` otherwise.
+     */
+    bool pop(T& item);
+
+    /**
+     * Tells push() to NOT accept new items any more
+     */
+    void finish();
+
+    BlockingQueue() = default;
+    explicit BlockingQueue(unsigned size);
+private:
+    std::queue<T> q;
+    std::mutex mutex;
+    std::condition_variable cond_nonempty;
+    std::condition_variable cond_nonfull;
+    bool finished{false};
+};
+
+template<typename T> bool BlockingQueue<T>::push(const T& item) {
       bool ret = false;
       while (!ret) {
-	 std::unique_lock<decltype(this->mutex)> l{this->mutex};
-	 this->cond_nonfull.wait(l, [&] { return this->q.size() < this->max_size || this->finished; });
+	 std::unique_lock<decltype(this->mutex)> lock{this->mutex};
+	 this->cond_nonfull.wait(lock, [&] { return this->q.size() < this->max_size || this->finished; });
 	 if (this->finished) {
 	    break;
 	 } else {
@@ -49,18 +70,11 @@ public:
       return ret;
     }
 
-    /**
-     * Moves the 1st element to `item`.
-     * If the queue is empty the caller is blocked until something is added
-     * or the queue enters the `finished` state.
-     * Returns `false` if the queue is in the `finished` state *and* is empty
-     * (`item` is not changed in this case), `true` otherwise.
-     */
-    bool pop(T& item) {
+template<typename T> bool BlockingQueue<T>::pop(T& item) {
        bool ret = false;
        while (!ret) {
-          std::unique_lock<decltype(this->mutex)> l{this->mutex};
-          this->cond_nonempty.wait(l, [&] { return !this->q.empty() || this->finished; });
+          std::unique_lock<decltype(this->mutex)> lock{this->mutex};
+          this->cond_nonempty.wait(lock, [&] { return !this->q.empty() || this->finished; });
           if (!this->q.empty()) {
 	     item = this->q.front();
 	     this->q.pop();
@@ -71,21 +85,19 @@ public:
        }
        this->cond_nonfull.notify_one();
        return ret;
-    }
+}
 
-    void finish() {
+template<typename T> void BlockingQueue<T>::finish() {
       {
-         std::unique_lock<decltype(this->mutex)> l{this->mutex};
+         std::unique_lock<decltype(this->mutex)> lock{this->mutex};
 	 this->finished = true;
       }
       this->cond_nonempty.notify_all();
-    }
+}
 
-    BlockingQueue() = default;
-    explicit BlockingQueue(unsigned size) : max_size{size} { }
-};
+template<typename T> BlockingQueue<T>::BlockingQueue(unsigned int size) : max_size{size} { }
 
-using Queue = BlockingQueue<unsigned int>;
+using WorkQueue = BlockingQueue<unsigned int>;
 
 static void spin_for(int64_t usecs) {
     auto start = std::chrono::steady_clock::now();
@@ -95,11 +107,10 @@ static void spin_for(int64_t usecs) {
     } while(std::chrono::duration_cast<std::chrono::microseconds>(now - start).count() < usecs);
 }
 
-
-void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec, unsigned idx) {
+void worker(std::shared_ptr<WorkQueue> qptr, unsigned serviceTimeUsec, unsigned idx) {
     std::string name = std::string("tworker_") + std::to_string(idx);
     pthread_setname_np(pthread_self(), name.c_str());
-    typename Queue::value_type item{};
+    typename WorkQueue::value_type item{};
     while (qptr->pop(item)) {
 	item++;
 	if (serviceTimeUsec > 0) {
@@ -109,7 +120,7 @@ void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec, unsigned idx)
     }
 }
 
-void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
+void producer(std::shared_ptr<WorkQueue> qptr, uint64_t maxItems, unsigned periodUsec) {
     pthread_setname_np(pthread_self(), "tproducer");
     unsigned int item = 0;
 
@@ -134,7 +145,7 @@ struct Conf {
 };
 
 void run(const Conf& conf) {
-    auto qptr = std::make_shared<Queue>();
+    auto qptr = std::make_shared<WorkQueue>();
     uint64_t producerEta = uint64_t(conf.msgCount)*conf.msgPeriodUsec;
     uint64_t consumerEta = (uint64_t(conf.msgCount)*conf.workerServiceTimeUsec)/conf.workerCount;
     uint64_t eta = std::max(consumerEta, producerEta);
