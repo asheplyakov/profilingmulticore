@@ -25,30 +25,21 @@ Many threads wake up on the same event, but only can handle it.
 
 
 ```c++
-struct Queue {
-    std::queue<int> q;
-    std::mutex mutex;
-    std::condition_variable cond_nonempty;
-    std::condition_variable cond_nonfull;
-    unsigned max_size{128U};
-    bool finished{false};
+template<typename T> class BlockingQueue {
+public:
+    bool push(const T& item);
+    bool pop(T& item);
+    void finish();
+    explicit BlockingQueue(unsigned capacity);
 };
 ```
 
 ```c++
-void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
-    for (;;) {
-        std::remove_reference<decltype(qptr->q.front())>::type item;
-        {
-           std::unique_lock<decltype(qptr->mutex)> l(qptr->mutex);
-           qptr->cond_nonempty.wait(l, [&] { return !qptr->q.empty() || qptr->finished; });
-           if (qptr->q.empty() && qptr->finished) {
-               break;
-           }
-           item = qptr->q.front();
-           qptr->q.pop();
-        }
-        qptr->cond_nonfull.notify_one();
+using WorkQueue = BlockingQueue<unsigned int>;
+
+void worker(std::shared_ptr<WorkQueue> qptr, unsigned serviceTimeUsec) {
+    typename WorkQueue::value_type item{};
+    while (qptr->pop(item)) {
         item++;
         if (serviceTimeUsec > 0) {
            std::this_thread::sleep_for(std::chrono::microseconds(serviceTimeUsec));
@@ -58,31 +49,56 @@ void worker(std::shared_ptr<Queue> qptr, unsigned serviceTimeUsec) {
 ```
 
 ```c++
-void producer(std::shared_ptr<Queue> qptr, uint64_t maxItems, unsigned periodUsec) {
-    int item = 0;
-    using unique_lock = std::unique_lock<decltype(qptr->mutex)>;
+void producer(std::shared_ptr<WorkQueue> qptr, uint64_t maxItems, unsigned periodUsec) {
+    typename Queue::value_type item{0};
     for (uint64_t i = 0; i < maxItems; i++) {
-        {
-           unique_lock l(qptr->mutex);
-           qptr->cond_nonfull.wait(l, [&] { return qptr->q.size() < qptr->max_size; });
-           qptr->q.push(item);
-        }
-        qptr->cond_nonempty.notify_all();
-        item++;
+        qptr->push(item);
         if (periodUsec > 0) {
             spin_for(periodUsec);
         }
-   }
-   {
-        unique_lock l(qptr->mutex);
-        qptr->finished = true;
-   }
-   qptr->cond_nonempty.notify_all();
+    }
+    qptr->finish();
+}
+```
+
+```c++
+tempate<typename T> bool BlockingQueue<T>::push(const T& item) {
+    bool ret = false;
+    while (!ret) {
+        std::unique_lock<decltype(this->mutex)> l{this->mutex};
+        this->cond_nonfull.wait(l, [&] { return this->q.size() < this->max_size || this->finished; });
+        if (this->finished) {
+            break;
+        } else {
+            this->q.push(item);
+            ret = true;
+        }
+    }
+    this->cond_nonempty.notify_all();
+    return ret;
+}
+```
+
+```c++
+template<typename T> bool BlockingQueue<T>::pop(T& item) {
+    bool ret = false;
+    while (!ret) {
+        std::unique_lock<decltype(this->mutex)> l{this->mutex};
+        this->cond_nonempty.wait(l, [&] { return !this->q.empty() || this->finished; });
+        if (!this->q.empty()) {
+            item = this->q.front();
+            this->q.pop();
+            ret = true;
+        } else if (this->finished) {
+            break;
+        }
+     }
+     this->cond_nonfull.notify_one();
+     return ret;
 }
 ```
 
 [complete source](./src/thunderingherd.cpp)
-
 
 #### Expectations
 
